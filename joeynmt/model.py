@@ -45,7 +45,9 @@ class Model(nn.Module):
 				 src_embed: Embeddings,
 				 trg_embed: Embeddings,
 				 src_vocab: Vocabulary,
-				 trg_vocab: Vocabulary) -> None:
+				 trg_vocab: Vocabulary,
+				 factor_embed: Embeddings,
+				 factor_vocab: Vocabulary) -> None:  # The model should take factor vocabulary and embeddings
 		"""
 		Create a new encoder-decoder model
 		:param encoder: encoder
@@ -54,6 +56,8 @@ class Model(nn.Module):
 		:param trg_embed: target embedding
 		:param src_vocab: source vocabulary
 		:param trg_vocab: target vocabulary
+		:param factor_embed: factor embedding
+		:param factor_vocab: factor vocabulary
 		"""
 		super(Model, self).__init__()
 
@@ -66,6 +70,9 @@ class Model(nn.Module):
 		self.bos_index = self.trg_vocab.stoi[BOS_TOKEN]
 		self.pad_index = self.trg_vocab.stoi[PAD_TOKEN]
 		self.eos_index = self.trg_vocab.stoi[EOS_TOKEN]
+		# add them as attributes
+		self.factor_embed = factor_embed
+		self.factor_vocab = factor_vocab
 
 	# pylint: disable=arguments-differ
 	def forward(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
@@ -139,7 +146,8 @@ class Model(nn.Module):
 		out, hidden, att_probs, _ = self.forward(
 			src=batch.src, trg_input=batch.trg_input,
 			src_mask=batch.src_mask, src_lengths=batch.src_lengths,
-			trg_mask=batch.trg_mask, )
+			trg_mask=batch.trg_mask, factor=batch.factor)  # added factor, but it did not like it.
+														   # I have to put this somewhere before here.
 
 		# compute log probs
 		log_probs = F.log_softmax(out, dim=-1)
@@ -206,16 +214,19 @@ class Model(nn.Module):
 
 def build_model(cfg: dict = None,
 				src_vocab: Vocabulary = None,
-				trg_vocab: Vocabulary = None) -> Model:
+				trg_vocab: Vocabulary = None,
+				factor_vocab: Vocabulay = None) -> Model:
 	"""
 	Build and initialize the model according to the configuration.
 	:param cfg: dictionary configuration containing model specifications
 	:param src_vocab: source vocabulary
 	:param trg_vocab: target vocabulary
+	:param factor_vocab: factor vocabulary extracted from source training data
 	:return: built and initialized model
 	"""
 	src_padding_idx = src_vocab.stoi[PAD_TOKEN]
 	trg_padding_idx = trg_vocab.stoi[PAD_TOKEN]
+	factor_padding_idx = factor_vocab.stoi[PAD_TOKEN]  # index of source factor padding token
 
 	src_embed = Embeddings(
 		**cfg["encoder"]["embeddings"], vocab_size=len(src_vocab),
