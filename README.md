@@ -1,3 +1,25 @@
+time taken:
+54656 seconds
+
+(ex4) nurdanay07@instance-1-ex2:~/joeynmt-toy-models$ ./scripts/evaluate.sh 
+############################################################################
+###
+model_name rnn_wmt16_deen
+2020-05-08 09:13:35,432 Hello! This is Joey-NMT.
+Detokenizer Version $Revision: 4134 $
+Language: en
+BLEU+case.mixed+numrefs.1+smooth.exp+tok.13a+version.1.4.9 = 9.1 42.9/15.1/6
+.1/2.5 (BP = 0.910 ratio = 0.913 hyp_len = 58579 ref_len = 64132)
+time taken:
+2167 seconds
+
+
+
+
+
+
+
+
 # &nbsp; ![Joey-NMT](joey-small.png) Joey NMT
 [![Build Status](https://travis-ci.com/joeynmt/joeynmt.svg?branch=master)](https://travis-ci.org/joeynmt/joeynmt)
 [![Gitter](https://badges.gitter.im/joeynmt/community.svg)](https://gitter.im/joeynmt/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
