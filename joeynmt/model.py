@@ -80,7 +80,7 @@ class Model(nn.Module):
 
 	# pylint: disable=arguments-differ
 	def forward(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
-				src_lengths: Tensor, trg_mask: Tensor, factor: Tensor = None ) -> (
+				src_lengths: Tensor, trg_mask: Tensor, factor: Tensor = None) -> (
 		Tensor, Tensor, Tensor, Tensor):
 		"""
 		First encodes the source sentence.
@@ -281,9 +281,16 @@ def build_model(cfg: dict = None,
 									 emb_size=src_embed.embedding_dim,
 									 emb_dropout=enc_emb_dropout)
 	else:
+		src_factor_combine = cfg["encoder"].get("src_factor_combine")
+
 		encoder = RecurrentEncoder(**cfg["encoder"],
 								   emb_size=src_embed.embedding_dim,
 								   emb_dropout=enc_emb_dropout)
+
+	# check dimensions for embeddings and encoder inputs are compatible
+	if src_embed.embedding_dim != factor_embed.embedding_dim:
+		raise ConfigurationError("Dimensions of encoder input and embeddings are not compatible.")
+
 
 	# build decoder
 	dec_dropout = cfg["decoder"].get("dropout", 0.)
