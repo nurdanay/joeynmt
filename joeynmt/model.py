@@ -22,6 +22,7 @@ import numpy as np
 import torch.nn as nn
 from torch import Tensor
 import torch.nn.functional as F
+import torch
 
 from joeynmt.initialization import initialize_model
 from joeynmt.embeddings import Embeddings
@@ -47,7 +48,8 @@ class Model(nn.Module):
 				 src_vocab: Vocabulary,
 				 trg_vocab: Vocabulary,
 				 factor_embed: Embeddings,
-				 factor_vocab: Vocabulary) -> None:  # The model should take factor vocabulary and embeddings
+				 factor_vocab: Vocabulary,
+				 src_factor_combine: str) -> None:  # The model should take factor vocabulary and embeddings and its combining
 		"""
 		Create a new encoder-decoder model
 		:param encoder: encoder
@@ -58,6 +60,7 @@ class Model(nn.Module):
 		:param trg_vocab: target vocabulary
 		:param factor_embed: factor embedding
 		:param factor_vocab: factor vocabulary
+		:param src_factor_vocab:combined source and factor 
 		"""
 		super(Model, self).__init__()
 
@@ -73,10 +76,11 @@ class Model(nn.Module):
 		# add them as attributes
 		self.factor_embed = factor_embed
 		self.factor_vocab = factor_vocab
+		self.src_factor_combine = src_factor_combine
 
 	# pylint: disable=arguments-differ
 	def forward(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
-				src_lengths: Tensor, trg_mask: Tensor = None) -> (
+				src_lengths: Tensor, trg_mask: Tensor, factor: Tensor = None ) -> (
 		Tensor, Tensor, Tensor, Tensor):
 		"""
 		First encodes the source sentence.
@@ -86,11 +90,13 @@ class Model(nn.Module):
 		:param src_mask: source mask
 		:param src_lengths: length of source inputs
 		:param trg_mask: target mask
+		:param factor: source factor
 		:return: decoder outputs
 		"""
 		encoder_output, encoder_hidden = self.encode(src=src,
 													 src_length=src_lengths,
-													 src_mask=src_mask)
+													 src_mask=src_mask,
+													 factor=factor) # use factor when encoding
 		unroll_steps = trg_input.size(1)
 		return self.decode(encoder_output=encoder_output,
 						   encoder_hidden=encoder_hidden,
@@ -98,16 +104,28 @@ class Model(nn.Module):
 						   unroll_steps=unroll_steps,
 						   trg_mask=trg_mask)
 
-	def encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor) \
+	def encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor, factor: Tensor) \
 		-> (Tensor, Tensor):
 		"""
 		Encodes the source sentence.
 		:param src:
 		:param src_length:
 		:param src_mask:
+		:param factor:
 		:return: encoder outputs (output, hidden_concat)
 		"""
+
+		# concetanete the src and factor embedding and create the new src
+		if self.src_factor_combine == "concatenate":
+			src = torch.cat((src, factor), 2)
+
+		# add the src and factor embedding and create the new src
+		elif self.src_factor_combine == "add":
+			src = torch.add(src, factor)
+
+			
 		return self.encoder(self.src_embed(src), src_length, src_mask)
+
 
 	def decode(self, encoder_output: Tensor, encoder_hidden: Tensor,
 			   src_mask: Tensor, trg_input: Tensor,
@@ -170,7 +188,7 @@ class Model(nn.Module):
 		"""
 		encoder_output, encoder_hidden = self.encode(
 			batch.src, batch.src_lengths,
-			batch.src_mask)
+			batch.src_mask, batch.factor)
 
 		# if maximum output length is not globally specified, adapt to src len
 		if max_output_length is None:
@@ -215,7 +233,7 @@ class Model(nn.Module):
 def build_model(cfg: dict = None,
 				src_vocab: Vocabulary = None,
 				trg_vocab: Vocabulary = None,
-				factor_vocab: Vocabulay = None) -> Model:
+				factor_vocab: Vocabulary = None) -> Model:
 	"""
 	Build and initialize the model according to the configuration.
 	:param cfg: dictionary configuration containing model specifications
@@ -231,6 +249,11 @@ def build_model(cfg: dict = None,
 	src_embed = Embeddings(
 		**cfg["encoder"]["embeddings"], vocab_size=len(src_vocab),
 		padding_idx=src_padding_idx)
+
+	factor_embed = Embeddings(
+		**cfg["encoder"]["factor_embeddings"], vocab_size=len(factor_vocab),
+		padding_idx=factor_padding_idx)
+
 
 	# this ties source and target embeddings
 	# for softmax layer tying, see further below
@@ -276,7 +299,9 @@ def build_model(cfg: dict = None,
 
 	model = Model(encoder=encoder, decoder=decoder,
 				  src_embed=src_embed, trg_embed=trg_embed,
-				  src_vocab=src_vocab, trg_vocab=trg_vocab)
+				  src_vocab=src_vocab, trg_vocab=trg_vocab,
+				  factor_embed=factor_embed, factor_vocab=factor_vocab,
+				  src_factor_combine=src_factor_combine)
 
 	# tie softmax layer with trg embeddings
 	if cfg.get("tied_softmax", False):
@@ -291,6 +316,6 @@ def build_model(cfg: dict = None,
 				"The decoder must be a Transformer.")
 
 	# custom initialization of model parameters
-	initialize_model(model, cfg, src_padding_idx, trg_padding_idx)
+	initialize_model(model, cfg, src_padding_idx, trg_padding_idx, factor_padding_idx)
 
 	return model
