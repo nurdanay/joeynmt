@@ -4,19 +4,6 @@ Module to represents whole models
 """
 
 
-# for batch , I might need to add factor_length, masks (to extend torch attributes)
-# self.factor , self.factor_lengths = torch_batch.factor
-
-# data.py   ## add factor_vocab: factor vocabulary extracted from source training data
-			# line 108, check it again
-
-# initialization.py   ## add factor_padding_idx:int : index of source factor padding token
-
-# prediction.py  ## there is bui;ding part here  ## add factor_vocab=factor_vocab
-				## add factor_field=factor_field to datasets here
-
-# also, I need to add an attribute for embeddings
-
 import numpy as np
 
 import torch.nn as nn
